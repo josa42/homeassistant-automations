@@ -133,20 +133,27 @@ def validate() -> list[str]:
     return errors
 
 
-def table() -> str:
-    rows = [
-        "| Blueprint | Description | |",
-        "| --- | --- | --- |",
-    ]
+def paragraphs(text: object) -> str:
+    """Collapse each paragraph onto one line, keeping the blank lines between them."""
+    parts = (" ".join(part.split()) for part in str(text).split("\n\n"))
+    return "\n\n".join(part for part in parts if part)
+
+
+def listing() -> str:
+    """One section per blueprint, so the import button never lands off-screen."""
+    sections = []
     for path in blueprints():
         meta = load(path)["blueprint"]
-        description = " ".join(str(meta.get("description", "")).split())
         badge = (
             "[![Import Blueprint]"
             f"(https://my.home-assistant.io/badges/blueprint_import.svg)]({import_url(path)})"
         )
-        rows.append(f"| [{meta['name']}]({path.relative_to(ROOT).as_posix()}) | {description} | {badge} |")
-    return "\n".join(rows)
+        sections.append(
+            f"### [{meta['name']}]({path.relative_to(ROOT).as_posix()})\n\n"
+            f"{paragraphs(meta.get('description', ''))}\n\n"
+            f"{badge}"
+        )
+    return "\n\n".join(sections)
 
 
 def render(check: bool) -> list[str]:
@@ -155,7 +162,7 @@ def render(check: bool) -> list[str]:
     if not pattern.search(content):
         return [f"README.md: missing '{START}' / '{END}' markers"]
 
-    block = f"{START}\n\n{table()}\n\n{END}"
+    block = f"{START}\n\n{listing()}\n\n{END}"
     updated = pattern.sub(lambda _: block, content)
     if updated == content:
         return []

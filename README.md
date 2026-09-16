@@ -9,10 +9,21 @@ blueprint URL into **Settings → Automations & scenes → Blueprints → Import
 
 <!-- blueprints:start -->
 
-| Blueprint | Description | |
-| --- | --- | --- |
-| [Example Blueprint](blueprints/automation/example.yaml) | Placeholder blueprint used to validate the repository setup. Runs a user-defined set of actions whenever a sensor turns on, optionally after a delay. | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/example.yaml) |
-| [Motion Light](blueprints/automation/motion-light.yaml) | Switch lights on when motion is detected and off again once every motion sensor has been clear for a while. Turning on can be gated on ambient light, on a time window, and on a bypass entity. Turning off is only blocked by the bypass, so lights can never be stranded on by a lux reading or by the end of the time window. Lights switched on by hand are also switched off once the room clears. | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml) |
+### [Example Blueprint](blueprints/automation/example.yaml)
+
+Placeholder blueprint used to validate the repository setup. Runs a user-defined set of actions whenever a sensor turns on, optionally after a delay.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/example.yaml)
+
+### [Motion Light](blueprints/automation/motion-light.yaml)
+
+Switch lights on when motion is detected and off again once every motion sensor has been clear for a while.
+
+Turning on can be gated on ambient light, on a time window, and on a bypass entity. Turning off is only blocked by the bypass, so lights can never be stranded on by a lux reading or by the end of the time window.
+
+Lights switched on by hand are also switched off once the room clears.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml)
 
 <!-- blueprints:end -->
 
