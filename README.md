@@ -21,10 +21,9 @@ Blueprints live in `blueprints/<domain>/`. After adding or changing one, refresh
 list above and check the blueprint itself:
 
 ```sh
-pip install -r requirements-dev.txt
-python3 scripts/blueprints.py readme
-python3 scripts/blueprints.py validate
-yamllint .
+make readme    # regenerate the list above
+make check     # lint, validate the blueprints, check the README is in sync
 ```
 
-CI runs the same checks on every push and pull request.
+Both create a `.venv/` with the development dependencies on first run. Run `make help`
+for all targets. CI runs `make check` on every push and pull request.
