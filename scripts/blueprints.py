@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-import urllib.parse
 from pathlib import Path
 
 import yaml
@@ -49,16 +48,11 @@ def source_url(path: Path) -> str:
     return f"{REPO_URL}/blob/{BRANCH}/{path.relative_to(ROOT).as_posix()}"
 
 
-def raw_url(path: Path) -> str:
-    return (
-        "https://raw.githubusercontent.com/josa42/homeassistant-automations/"
-        f"{BRANCH}/{path.relative_to(ROOT).as_posix()}"
-    )
-
-
 def import_url(path: Path) -> str:
-    query = urllib.parse.urlencode({"blueprint": raw_url(path)})
-    return f"https://my.home-assistant.io/redirect/blueprint_import/?{query}"
+    return (
+        "https://my.home-assistant.io/redirect/blueprint_import/"
+        f"?blueprint_url={source_url(path)}"
+    )
 
 
 def input_keys(inputs: dict) -> set[str]:
@@ -148,7 +142,7 @@ def table() -> str:
         meta = load(path)["blueprint"]
         description = " ".join(str(meta.get("description", "")).split())
         badge = (
-            f"[![Add blueprint to your Home Assistant instance.]"
+            "[![Import Blueprint]"
             f"(https://my.home-assistant.io/badges/blueprint_import.svg)]({import_url(path)})"
         )
         rows.append(f"| [{meta['name']}]({path.relative_to(ROOT).as_posix()}) | {description} | {badge} |")

@@ -11,7 +11,7 @@ blueprint URL into **Settings → Automations & scenes → Blueprints → Import
 
 | Blueprint | Description | |
 | --- | --- | --- |
-| [Example Blueprint](blueprints/automation/example.yaml) | Placeholder blueprint used to validate the repository setup. Runs a user-defined set of actions whenever a sensor turns on, optionally after a delay. | [![Add blueprint to your Home Assistant instance.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint=https%3A%2F%2Fraw.githubusercontent.com%2Fjosa42%2Fhomeassistant-automations%2Fmain%2Fblueprints%2Fautomation%2Fexample.yaml) |
+| [Example Blueprint](blueprints/automation/example.yaml) | Placeholder blueprint used to validate the repository setup. Runs a user-defined set of actions whenever a sensor turns on, optionally after a delay. | [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/example.yaml) |
 
 <!-- blueprints:end -->
 
