@@ -1,0 +1,60 @@
+blueprint:
+  name: Example Blueprint
+  description: >-
+    Placeholder blueprint used to validate the repository setup. Runs a
+    user-defined set of actions whenever a sensor turns on, optionally after a
+    delay.
+  domain: automation
+  author: Josa Gesell
+  source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/example.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    when:
+      name: When
+      icon: mdi:flash
+      input:
+        trigger_entity:
+          name: Trigger entity
+          description: The automation runs when this entity turns on.
+          selector:
+            entity:
+              domain: binary_sensor
+    then:
+      name: Then
+      icon: mdi:play
+      input:
+        actions:
+          name: Actions
+          description: What to run once the trigger entity turns on.
+          selector:
+            action: {}
+    settings:
+      name: Settings
+      icon: mdi:cog
+      collapsed: true
+      input:
+        delay:
+          name: Delay
+          description: How long to wait before running the actions.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 600
+              step: 1
+              unit_of_measurement: seconds
+              mode: slider
+
+mode: restart
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input trigger_entity
+    to: "on"
+
+actions:
+  - delay:
+      seconds: !input delay
+  - sequence: !input actions
