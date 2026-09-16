@@ -1,0 +1,187 @@
+blueprint:
+  name: Motion Light
+  description: >-
+    Switch lights on when motion is detected and off again once every motion
+    sensor has been clear for a while.
+
+
+    Turning on can be gated on ambient light, on a time window, and on a bypass
+    entity. Turning off is only blocked by the bypass, so lights can never be
+    stranded on by a lux reading or by the end of the time window.
+
+
+    Lights switched on by hand are also switched off once the room clears.
+  domain: automation
+  author: Josa Gesell
+  source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml
+  homeassistant:
+    min_version: "2026.7.0"
+  input:
+    devices:
+      name: Devices
+      icon: mdi:motion-sensor
+      input:
+        motion_sensors:
+          name: Motion sensors
+          description: >-
+            Motion or occupancy sensors that report the room. An area, floor or
+            label works too, and then follows its members over time.
+          selector:
+            target:
+              entity:
+                - domain: binary_sensor
+                  device_class: motion
+                - domain: binary_sensor
+                  device_class: occupancy
+        lights:
+          name: Lights
+          description: The lights to switch on and off.
+          selector:
+            target:
+              entity:
+                domain: light
+    behaviour:
+      name: Behaviour
+      icon: mdi:cog
+      input:
+        no_motion_wait:
+          name: Wait time
+          description: >-
+            How long every motion sensor has to stay clear before the lights are
+            switched off.
+          default:
+            hours: 0
+            minutes: 2
+            seconds: 0
+          selector:
+            duration: {}
+        brightness_pct:
+          name: Brightness
+          description: >-
+            Brightness the lights are switched on with. Applied when motion
+            starts, not on every movement, so dimming by hand keeps until the
+            room has been empty once.
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+    conditions:
+      name: Conditions
+      icon: mdi:filter
+      collapsed: true
+      input:
+        lux_sensors:
+          name: Luminance sensors
+          description: >-
+            Optional. The lights are only switched on while every selected
+            sensor reads below the threshold. Leave empty to ignore ambient
+            light.
+          default: []
+          selector:
+            entity:
+              multiple: true
+              filter:
+                - domain: sensor
+                  device_class: illuminance
+        lux_threshold:
+          name: Luminance threshold
+          description: The lights stay off while it is brighter than this.
+          default: 50
+          selector:
+            number:
+              min: 0
+              max: 1000
+              step: 1
+              unit_of_measurement: lx
+              mode: slider
+        use_time_window:
+          name: Restrict to a time window
+          description: >-
+            Only switch lights on between the two times below. Switching off is
+            never restricted.
+          default: false
+          selector:
+            boolean: {}
+        time_after:
+          name: Not before
+          default: "00:00:00"
+          selector:
+            time: {}
+        time_before:
+          name: Not after
+          default: "00:00:00"
+          selector:
+            time: {}
+        bypass_entities:
+          name: Bypass
+          description: >-
+            Optional. While any of these entities is on, the automation does
+            nothing at all: lights are neither switched on nor off.
+          default: []
+          selector:
+            entity:
+              multiple: true
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  lux_sensors: !input lux_sensors
+  lux_threshold: !input lux_threshold
+  bypass_entities: !input bypass_entities
+  brightness_pct: !input brightness_pct
+
+triggers:
+  - trigger: motion.detected
+    target: !input motion_sensors
+    options:
+      behavior: first
+    id: motion_detected
+  - trigger: motion.cleared
+    target: !input motion_sensors
+    options:
+      behavior: all
+      for: !input no_motion_wait
+    id: motion_cleared
+
+conditions:
+  - alias: Not bypassed
+    condition: template
+    value_template: >-
+      {{ expand(bypass_entities) | selectattr('state', 'eq', 'on') | list | count == 0 }}
+
+actions:
+  - choose:
+      - alias: Motion started
+        conditions:
+          - condition: trigger
+            id: motion_detected
+          - alias: Dark enough
+            condition: template
+            value_template: >-
+              {% set readings = expand(lux_sensors) | map(attribute='state')
+                 | map('float', -1) | select('ge', 0) | list %}
+              {{ readings | count == 0 or readings | max < lux_threshold | float }}
+          - alias: Within the time window
+            condition: time
+            after: !input time_after
+            before: !input time_before
+            enabled: !input use_time_window
+        sequence:
+          - alias: Switch the lights on
+            action: light.turn_on
+            target: !input lights
+            data:
+              brightness_pct: "{{ brightness_pct }}"
+      - alias: Motion cleared
+        conditions:
+          - condition: trigger
+            id: motion_cleared
+        sequence:
+          - alias: Switch the lights off
+            action: light.turn_off
+            target: !input lights
