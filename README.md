@@ -33,6 +33,16 @@ Lights switched on by hand are also switched off once the room clears.
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml)
 
+### [Motion Sound](blueprints/automation/motion-sound.yaml)
+
+Play a sound on a Sonos speaker when motion is detected, picked by time of day from up to four time slots.
+
+Each slot plays either local media or a Spotify playlist. A local folder plays a random file from it, and a playlist starts on a random song and keeps shuffling.
+
+Playback stops once every sensor has been clear for a while, but never before a minimum play time. Nothing plays while the speaker is already playing, and if the speaker has been switched to something else in the meantime it is left alone.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-sound.yaml)
+
 <!-- blueprints:end -->
 
 ## Development

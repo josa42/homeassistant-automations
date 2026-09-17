@@ -1,0 +1,381 @@
+blueprint:
+  name: Motion Sound
+  description: >-
+    Play a sound on a Sonos speaker when motion is detected, picked by time of
+    day from up to four time slots.
+
+
+    Each slot plays either local media or a Spotify playlist. A local folder
+    plays a random file from it, and a playlist starts on a random song and
+    keeps shuffling.
+
+
+    Playback stops once every sensor has been clear for a while, but never
+    before a minimum play time. Nothing plays while the speaker is already
+    playing, and if the speaker has been switched to something else in the
+    meantime it is left alone.
+  domain: automation
+  author: Josa Gesell
+  source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-sound.yaml
+  homeassistant:
+    min_version: "2026.9.0"
+  input:
+    devices:
+      name: Devices
+      icon: mdi:motion-sensor
+      input:
+        motion_sensors:
+          name: Motion sensors
+          description: >-
+            Motion or occupancy sensors that report the room. An area, floor or
+            label works too, and then follows its members over time.
+          selector:
+            target:
+              entity:
+                - domain: binary_sensor
+                  device_class: motion
+                - domain: binary_sensor
+                  device_class: occupancy
+        speaker:
+          name: Speaker
+          description: The Sonos speaker to play on.
+          selector:
+            entity:
+              filter:
+                - domain: media_player
+                  integration: sonos
+    behaviour:
+      name: Behaviour
+      icon: mdi:cog
+      input:
+        min_play_time:
+          name: Minimum play time
+          description: Playback is never stopped before it has run this long.
+          default:
+            hours: 0
+            minutes: 5
+            seconds: 0
+          selector:
+            duration: {}
+        no_motion_wait:
+          name: Wait time
+          description: >-
+            How long every sensor has to stay clear before playback is stopped.
+          default:
+            hours: 0
+            minutes: 2
+            seconds: 0
+          selector:
+            duration: {}
+    slot_1:
+      name: Time slot 1
+      icon: mdi:numeric-1-circle
+      input:
+        slot_1_enabled: &enabled
+          name: Enabled
+          default: true
+          selector:
+            boolean: {}
+        slot_1_start: &start
+          name: From
+          description: A slot with the same start and end time covers the whole day.
+          default: "00:00:00"
+          selector:
+            time: {}
+        slot_1_end: &end
+          name: To
+          description: >-
+            May be earlier than the start to run past midnight. When slots
+            overlap, the first matching slot wins.
+          default: "00:00:00"
+          selector:
+            time: {}
+        slot_1_source: &source
+          name: Source
+          default: local
+          selector:
+            select:
+              mode: list
+              options:
+                - label: Local media
+                  value: local
+                - label: Spotify playlist
+                  value: spotify
+        slot_1_media: &media
+          name: Local media
+          description: A file, or a folder to play a random file from.
+          default: {}
+          selector:
+            media:
+              accept:
+                - audio/*
+                - directory
+        slot_1_playlist: &playlist
+          name: Spotify playlist
+          description: >-
+            Share link (https://open.spotify.com/playlist/…) or URI
+            (spotify:playlist:…). Spotify has to be linked in the Sonos app.
+          default: ""
+          selector:
+            text: {}
+        slot_1_volume: &volume
+          name: Volume
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+    slot_2:
+      name: Time slot 2
+      icon: mdi:numeric-2-circle
+      collapsed: true
+      input:
+        slot_2_enabled: &disabled
+          <<: *enabled
+          default: false
+        slot_2_start: *start
+        slot_2_end: *end
+        slot_2_source: *source
+        slot_2_media: *media
+        slot_2_playlist: *playlist
+        slot_2_volume: *volume
+    slot_3:
+      name: Time slot 3
+      icon: mdi:numeric-3-circle
+      collapsed: true
+      input:
+        slot_3_enabled: *disabled
+        slot_3_start: *start
+        slot_3_end: *end
+        slot_3_source: *source
+        slot_3_media: *media
+        slot_3_playlist: *playlist
+        slot_3_volume: *volume
+    slot_4:
+      name: Time slot 4
+      icon: mdi:numeric-4-circle
+      collapsed: true
+      input:
+        slot_4_enabled: *disabled
+        slot_4_start: *start
+        slot_4_end: *end
+        slot_4_source: *source
+        slot_4_media: *media
+        slot_4_playlist: *playlist
+        slot_4_volume: *volume
+
+mode: single
+max_exceeded: silent
+
+variables:
+  speaker: !input speaker
+  slots:
+    - enabled: !input slot_1_enabled
+      start: !input slot_1_start
+      end: !input slot_1_end
+      source: !input slot_1_source
+      media: !input slot_1_media
+      playlist: !input slot_1_playlist
+      volume: !input slot_1_volume
+    - enabled: !input slot_2_enabled
+      start: !input slot_2_start
+      end: !input slot_2_end
+      source: !input slot_2_source
+      media: !input slot_2_media
+      playlist: !input slot_2_playlist
+      volume: !input slot_2_volume
+    - enabled: !input slot_3_enabled
+      start: !input slot_3_start
+      end: !input slot_3_end
+      source: !input slot_3_source
+      media: !input slot_3_media
+      playlist: !input slot_3_playlist
+      volume: !input slot_3_volume
+    - enabled: !input slot_4_enabled
+      start: !input slot_4_start
+      end: !input slot_4_end
+      source: !input slot_4_source
+      media: !input slot_4_media
+      playlist: !input slot_4_playlist
+      volume: !input slot_4_volume
+
+triggers:
+  - trigger: motion.detected
+    target: !input motion_sensors
+    options:
+      behavior: first
+  - trigger: occupancy.detected
+    target: !input motion_sensors
+    options:
+      behavior: first
+
+conditions:
+  - alias: Speaker is not already playing
+    condition: not
+    conditions:
+      - condition: state
+        entity_id: !input speaker
+        state: playing
+
+actions:
+  - alias: Find the slot covering the current time
+    variables:
+      slot_index: >-
+        {% set ns = namespace(index=-1) %}
+        {% for s in slots %}
+          {% set start, end = today_at(s.start), today_at(s.end) %}
+          {% if ns.index == -1 and s.enabled and (start == end
+             or (start < end and start <= now() < end)
+             or (start > end and (now() >= start or now() < end))) %}
+            {% set ns.index = loop.index0 %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.index }}
+  - alias: A slot covers the current time
+    condition: template
+    value_template: "{{ slot_index >= 0 }}"
+  - variables:
+      slot: "{{ slots[slot_index] }}"
+      is_spotify: "{{ slot.source == 'spotify' }}"
+      is_folder: >-
+        {{ (slot.media.metadata | default({})).media_class | default('') == 'directory'
+           or slot.media.media_content_type | default('') in ['', 'directory'] }}
+  - alias: The slot has something to play
+    condition: template
+    value_template: >-
+      {{ (slot.playlist if is_spotify else slot.media.media_content_id | default('')) | trim != '' }}
+
+  - alias: Leave any speaker group
+    action: media_player.unjoin
+    target:
+      entity_id: !input speaker
+  - alias: Set the slot volume
+    action: media_player.volume_set
+    target:
+      entity_id: !input speaker
+    data:
+      volume_level: "{{ slot.volume / 100 }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ is_spotify }}"
+    then:
+      - alias: Shuffle the playlist
+        action: media_player.shuffle_set
+        target:
+          entity_id: !input speaker
+        data:
+          shuffle: true
+      - alias: Queue and play the playlist
+        action: media_player.play_media
+        target:
+          entity_id: !input speaker
+        data:
+          media_content_id: "{{ slot.playlist | trim }}"
+          media_content_type: playlist
+      - action: sonos.get_queue
+        target:
+          entity_id: !input speaker
+        response_variable: queue
+      - variables:
+          queue_size: "{{ queue[speaker] | count }}"
+      - alias: Start on a random song
+        if:
+          - condition: template
+            value_template: "{{ queue_size > 1 }}"
+        then:
+          - action: sonos.play_queue
+            target:
+              entity_id: !input speaker
+            data:
+              queue_position: "{{ range(queue_size) | random }}"
+      - alias: Wait for the playlist to play
+        wait_template: >-
+          {{ is_state(speaker, 'playing') and state_attr(speaker, 'queue_size') == queue_size }}
+        timeout: "00:00:30"
+        continue_on_timeout: false
+    else:
+      - if:
+          - condition: template
+            value_template: "{{ is_folder }}"
+        then:
+          - action: media_player.browse_media
+            target:
+              entity_id: !input speaker
+            data:
+              media_content_id: "{{ slot.media.media_content_id }}"
+              media_content_type: "{{ slot.media.media_content_type }}"
+            response_variable: listing
+          - variables:
+              files: >-
+                {{ listing[speaker].children | default([])
+                   | selectattr('can_play') | rejectattr('can_expand')
+                   | map(attribute='media_content_id') | list }}
+          - alias: The folder has playable files
+            condition: template
+            value_template: "{{ files | count > 0 }}"
+          - variables:
+              media_id: "{{ files | random }}"
+        else:
+          - variables:
+              media_id: "{{ slot.media.media_content_id }}"
+      - alias: Play the local media
+        action: media_player.play_media
+        target:
+          entity_id: !input speaker
+        data:
+          media_content_id: "{{ media_id }}"
+          media_content_type: music
+      - alias: Wait for the media to play
+        wait_template: "{{ is_state(speaker, 'playing') }}"
+        timeout: "00:00:30"
+        continue_on_timeout: false
+  - variables:
+      started_content_id: "{{ state_attr(speaker, 'media_content_id') }}"
+
+  - alias: Play for the minimum time
+    delay: !input min_play_time
+  - alias: Wait until every sensor has been clear long enough
+    repeat:
+      while:
+        - not:
+            - and:
+                - condition: motion.is_not_detected
+                  target: !input motion_sensors
+                  options:
+                    behavior: all
+                    for: !input no_motion_wait
+                - condition: occupancy.is_not_detected
+                  target: !input motion_sensors
+                  options:
+                    behavior: all
+                    for: !input no_motion_wait
+      sequence:
+        - wait_for_trigger:
+            - trigger: motion.cleared
+              target: !input motion_sensors
+              options:
+                behavior: all
+                for: !input no_motion_wait
+            - trigger: occupancy.cleared
+              target: !input motion_sensors
+              options:
+                behavior: all
+                for: !input no_motion_wait
+  - alias: Speaker still plays what was started
+    condition: template
+    value_template: >-
+      {% if not is_state(speaker, 'playing') %}
+        false
+      {% elif is_spotify %}
+        {{ state_attr(speaker, 'queue_size') == queue_size and state_attr(speaker, 'source') is none }}
+      {% else %}
+        {{ state_attr(speaker, 'media_content_id') == started_content_id }}
+      {% endif %}
+  - alias: Stop playback
+    action: media_player.media_stop
+    target:
+      entity_id: !input speaker
