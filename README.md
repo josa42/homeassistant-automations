@@ -15,6 +15,14 @@ Placeholder blueprint used to validate the repository setup. Runs a user-defined
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/example.yaml)
 
+### [Linked Lights](blueprints/automation/linked-lights.yaml)
+
+Bind two or more lights into one logical group. Switching any of them on or off switches the others to match, whether from a wall switch, the app or another automation.
+
+Lights that are unavailable are left alone, and a light coming back online does not switch the rest of the group.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/linked-lights.yaml)
+
 ### [Motion Light](blueprints/automation/motion-light.yaml)
 
 Switch lights on when motion is detected and off again once every motion sensor has been clear for a while.

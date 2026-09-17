@@ -1,0 +1,59 @@
+blueprint:
+  name: Linked Lights
+  description: >-
+    Bind two or more lights into one logical group. Switching any of them on or
+    off switches the others to match, whether from a wall switch, the app or
+    another automation.
+
+
+    Lights that are unavailable are left alone, and a light coming back online
+    does not switch the rest of the group.
+  domain: automation
+  author: Josa Gesell
+  source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/linked-lights.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    lights:
+      name: Lights
+      description: The lights to keep in sync. Pick at least two.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: light
+
+mode: queued
+max: 10
+max_exceeded: silent
+
+variables:
+  lights: !input lights
+
+triggers:
+  - trigger: state
+    entity_id: !input lights
+    not_from:
+      - unavailable
+      - unknown
+    to:
+      - "on"
+      - "off"
+
+conditions:
+  - alias: Not caused by this automation
+    condition: template
+    value_template: "{{ trigger.to_state.context.id != this.context.id }}"
+
+actions:
+  - variables:
+      targets: >-
+        {% set opposite = 'off' if trigger.to_state.state == 'on' else 'on' %}
+        {{ lights | select('is_state', opposite) | list }}
+  - alias: Some lights are out of sync
+    condition: template
+    value_template: "{{ targets | count > 0 }}"
+  - alias: Switch the other lights to match
+    action: light.turn_{{ trigger.to_state.state }}
+    target:
+      entity_id: "{{ targets }}"
