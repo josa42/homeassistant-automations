@@ -2,7 +2,7 @@ blueprint:
   name: Motion Sound
   description: >-
     Play a sound on a Sonos speaker when motion is detected, picked by time of
-    day from up to four time slots.
+    day from up to four time slots, with a default for the rest of the day.
 
 
     Each slot plays either local media or a Spotify playlist. A local folder
@@ -73,7 +73,7 @@ blueprint:
       input:
         slot_1_enabled: &enabled
           name: Enabled
-          default: true
+          default: false
           selector:
             boolean: {}
         slot_1_start: &start
@@ -133,9 +133,7 @@ blueprint:
       icon: mdi:numeric-2-circle
       collapsed: true
       input:
-        slot_2_enabled: &disabled
-          <<: *enabled
-          default: false
+        slot_2_enabled: *enabled
         slot_2_start: *start
         slot_2_end: *end
         slot_2_source: *source
@@ -147,7 +145,7 @@ blueprint:
       icon: mdi:numeric-3-circle
       collapsed: true
       input:
-        slot_3_enabled: *disabled
+        slot_3_enabled: *enabled
         slot_3_start: *start
         slot_3_end: *end
         slot_3_source: *source
@@ -159,13 +157,29 @@ blueprint:
       icon: mdi:numeric-4-circle
       collapsed: true
       input:
-        slot_4_enabled: *disabled
+        slot_4_enabled: *enabled
         slot_4_start: *start
         slot_4_end: *end
         slot_4_source: *source
         slot_4_media: *media
         slot_4_playlist: *playlist
         slot_4_volume: *volume
+    fallback:
+      name: Default
+      icon: mdi:music-note
+      input:
+        default_enabled:
+          name: Enabled
+          description: >-
+            Play this whenever no enabled time slot covers the current time.
+            Turn it off to stay silent outside the slots.
+          default: true
+          selector:
+            boolean: {}
+        default_source: *source
+        default_media: *media
+        default_playlist: *playlist
+        default_volume: *volume
 
 mode: single
 max_exceeded: silent
@@ -201,6 +215,12 @@ variables:
       media: !input slot_4_media
       playlist: !input slot_4_playlist
       volume: !input slot_4_volume
+  fallback:
+    enabled: !input default_enabled
+    source: !input default_source
+    media: !input default_media
+    playlist: !input default_playlist
+    volume: !input default_volume
 
 triggers:
   - trigger: motion.detected
@@ -234,11 +254,11 @@ actions:
           {% endif %}
         {% endfor %}
         {{ ns.index }}
-  - alias: A slot covers the current time
+  - alias: A slot covers the current time, or the default is enabled
     condition: template
-    value_template: "{{ slot_index >= 0 }}"
+    value_template: "{{ slot_index >= 0 or fallback.enabled }}"
   - variables:
-      slot: "{{ slots[slot_index] }}"
+      slot: "{{ slots[slot_index] if slot_index >= 0 else fallback }}"
       is_spotify: "{{ slot.source == 'spotify' }}"
       is_folder: >-
         {{ (slot.media.metadata | default({})).media_class | default('') == 'directory'

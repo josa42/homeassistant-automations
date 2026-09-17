@@ -35,7 +35,7 @@ Lights switched on by hand are also switched off once the room clears.
 
 ### [Motion Sound](blueprints/automation/motion-sound.yaml)
 
-Play a sound on a Sonos speaker when motion is detected, picked by time of day from up to four time slots.
+Play a sound on a Sonos speaker when motion is detected, picked by time of day from up to four time slots, with a default for the rest of the day.
 
 Each slot plays either local media or a Spotify playlist. A local folder plays a random file from it, and a playlist starts on a random song and keeps shuffling.
 
