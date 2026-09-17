@@ -40,11 +40,6 @@ triggers:
       - "on"
       - "off"
 
-conditions:
-  - alias: Not caused by this automation
-    condition: template
-    value_template: "{{ trigger.to_state.context.id != this.context.id }}"
-
 actions:
   - variables:
       targets: >-
