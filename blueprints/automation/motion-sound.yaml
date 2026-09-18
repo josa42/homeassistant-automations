@@ -283,12 +283,6 @@ actions:
       - condition: template
         value_template: "{{ is_spotify }}"
     then:
-      - alias: Shuffle the playlist
-        action: media_player.shuffle_set
-        target:
-          entity_id: !input speaker
-        data:
-          shuffle: true
       - alias: Queue and play the playlist
         action: media_player.play_media
         target:
@@ -312,6 +306,13 @@ actions:
               entity_id: !input speaker
             data:
               queue_position: "{{ range(queue_size) | random }}"
+      # Replacing the queue resets the play mode, so shuffle has to follow it.
+      - alias: Shuffle the playlist
+        action: media_player.shuffle_set
+        target:
+          entity_id: !input speaker
+        data:
+          shuffle: true
       - alias: Wait for the playlist to play
         wait_template: >-
           {{ is_state(speaker, 'playing') and state_attr(speaker, 'queue_size') == queue_size }}
