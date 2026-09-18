@@ -67,9 +67,60 @@ blueprint:
             seconds: 0
           selector:
             duration: {}
+    fallback:
+      name: Default
+      icon: mdi:music-note
+      input:
+        default_enabled:
+          name: Enabled
+          description: >-
+            Play this whenever no enabled time slot covers the current time.
+            Turn it off to stay silent outside the slots.
+          default: true
+          selector:
+            boolean: {}
+        default_source: &source
+          name: Source
+          default: local
+          selector:
+            select:
+              mode: list
+              options:
+                - label: Local media
+                  value: local
+                - label: Spotify playlist
+                  value: spotify
+        default_media: &media
+          name: Local media
+          description: A file, or a folder to play a random file from.
+          default: {}
+          selector:
+            media:
+              accept:
+                - audio/*
+                - directory
+        default_playlist: &playlist
+          name: Spotify playlist
+          description: >-
+            Share link (https://open.spotify.com/playlist/…) or URI
+            (spotify:playlist:…). Spotify has to be linked in the Sonos app.
+          default: ""
+          selector:
+            text: {}
+        default_volume: &volume
+          name: Volume
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
     slot_1:
       name: Time slot 1
       icon: mdi:numeric-1-circle
+      collapsed: true
       input:
         slot_1_enabled: &enabled
           name: Enabled
@@ -90,44 +141,10 @@ blueprint:
           default: "00:00:00"
           selector:
             time: {}
-        slot_1_source: &source
-          name: Source
-          default: local
-          selector:
-            select:
-              mode: list
-              options:
-                - label: Local media
-                  value: local
-                - label: Spotify playlist
-                  value: spotify
-        slot_1_media: &media
-          name: Local media
-          description: A file, or a folder to play a random file from.
-          default: {}
-          selector:
-            media:
-              accept:
-                - audio/*
-                - directory
-        slot_1_playlist: &playlist
-          name: Spotify playlist
-          description: >-
-            Share link (https://open.spotify.com/playlist/…) or URI
-            (spotify:playlist:…). Spotify has to be linked in the Sonos app.
-          default: ""
-          selector:
-            text: {}
-        slot_1_volume: &volume
-          name: Volume
-          default: 30
-          selector:
-            number:
-              min: 0
-              max: 100
-              step: 1
-              unit_of_measurement: "%"
-              mode: slider
+        slot_1_source: *source
+        slot_1_media: *media
+        slot_1_playlist: *playlist
+        slot_1_volume: *volume
     slot_2:
       name: Time slot 2
       icon: mdi:numeric-2-circle
@@ -164,22 +181,6 @@ blueprint:
         slot_4_media: *media
         slot_4_playlist: *playlist
         slot_4_volume: *volume
-    fallback:
-      name: Default
-      icon: mdi:music-note
-      input:
-        default_enabled:
-          name: Enabled
-          description: >-
-            Play this whenever no enabled time slot covers the current time.
-            Turn it off to stay silent outside the slots.
-          default: true
-          selector:
-            boolean: {}
-        default_source: *source
-        default_media: *media
-        default_playlist: *playlist
-        default_volume: *volume
 
 mode: single
 max_exceeded: silent
