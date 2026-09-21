@@ -14,6 +14,10 @@ blueprint:
     before a minimum play time. Nothing plays while the speaker is already
     playing, and if the speaker has been switched to something else in the
     meantime it is left alone.
+
+
+    The volume can be locked for as long as it plays, so a change made on the
+    speaker or in the Sonos app is put straight back.
   domain: automation
   author: Josa Gesell
   source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-sound.yaml
@@ -67,6 +71,15 @@ blueprint:
             seconds: 0
           selector:
             duration: {}
+        lock_volume:
+          name: Lock the volume
+          description: >-
+            Put the volume back whenever it is changed while this automation
+            plays. The speaker can be turned up or down again as soon as
+            playback stops.
+          default: false
+          selector:
+            boolean: {}
     fallback:
       name: Default
       icon: mdi:music-note
@@ -358,46 +371,81 @@ actions:
   - variables:
       started_content_id: "{{ state_attr(speaker, 'media_content_id') }}"
 
-  - alias: Play for the minimum time
-    delay: !input min_play_time
-  - alias: Wait until every sensor has been clear long enough
-    repeat:
-      while:
-        - not:
-            - and:
-                - condition: motion.is_not_detected
-                  target: !input motion_sensors
-                  options:
-                    behavior: all
-                    for: !input no_motion_wait
-                - condition: occupancy.is_not_detected
-                  target: !input motion_sensors
-                  options:
-                    behavior: all
-                    for: !input no_motion_wait
-      sequence:
-        - wait_for_trigger:
-            - trigger: motion.cleared
-              target: !input motion_sensors
-              options:
-                behavior: all
-                for: !input no_motion_wait
-            - trigger: occupancy.cleared
-              target: !input motion_sensors
-              options:
-                behavior: all
-                for: !input no_motion_wait
-  - alias: Speaker still plays what was started
-    condition: template
-    value_template: >-
-      {% if not is_state(speaker, 'playing') %}
-        false
-      {% elif is_spotify %}
-        {{ state_attr(speaker, 'queue_size') == queue_size and state_attr(speaker, 'source') is none }}
-      {% else %}
-        {{ state_attr(speaker, 'media_content_id') == started_content_id }}
-      {% endif %}
-  - alias: Stop playback
-    action: media_player.media_stop
-    target:
-      entity_id: !input speaker
+  - parallel:
+      - alias: Stop once the room has been empty long enough
+        sequence:
+          - alias: Play for the minimum time
+            delay: !input min_play_time
+          - alias: Wait until every sensor has been clear long enough
+            repeat:
+              while:
+                - not:
+                    - and:
+                        - condition: motion.is_not_detected
+                          target: !input motion_sensors
+                          options:
+                            behavior: all
+                            for: !input no_motion_wait
+                        - condition: occupancy.is_not_detected
+                          target: !input motion_sensors
+                          options:
+                            behavior: all
+                            for: !input no_motion_wait
+              sequence:
+                - wait_for_trigger:
+                    - trigger: motion.cleared
+                      target: !input motion_sensors
+                      options:
+                        behavior: all
+                        for: !input no_motion_wait
+                    - trigger: occupancy.cleared
+                      target: !input motion_sensors
+                      options:
+                        behavior: all
+                        for: !input no_motion_wait
+          - alias: Stop playback, unless the speaker was switched to something else
+            if:
+              - alias: Speaker still plays what was started
+                condition: template
+                value_template: &plays_started >-
+                  {% if not is_state(speaker, 'playing') %}
+                    false
+                  {% elif is_spotify %}
+                    {{ state_attr(speaker, 'queue_size') == queue_size and state_attr(speaker, 'source') is none }}
+                  {% else %}
+                    {{ state_attr(speaker, 'media_content_id') == started_content_id }}
+                  {% endif %}
+            then:
+              - alias: Stop playback
+                action: media_player.media_stop
+                target:
+                  entity_id: !input speaker
+      # A Sonos speaker cannot refuse a volume change, so the volume is put back
+      # instead, until the speaker stops or plays something else.
+      - alias: Put the volume back when it is changed
+        enabled: !input lock_volume
+        repeat:
+          while:
+            - condition: template
+              value_template: *plays_started
+          sequence:
+            # Any state change wakes this up: a new volume to put back, or the
+            # end of playback, which ends the loop.
+            - wait_for_trigger:
+                - trigger: state
+                  entity_id: !input speaker
+              # Only a backstop: a speaker that stops without reporting it would
+              # otherwise keep this branch, and the whole run, waiting forever.
+              timeout: "00:05:00"
+            - if:
+                - alias: Volume is no longer the slot volume
+                  condition: template
+                  value_template: >-
+                    {{ (state_attr(speaker, 'volume_level') | float(0) * 100) | round != slot.volume }}
+              then:
+                - alias: Set the slot volume again
+                  action: media_player.volume_set
+                  target:
+                    entity_id: !input speaker
+                  data:
+                    volume_level: "{{ slot.volume / 100 }}"

@@ -41,6 +41,8 @@ Each slot plays either local media or a Spotify playlist. A local folder plays a
 
 Playback stops once every sensor has been clear for a while, but never before a minimum play time. Nothing plays while the speaker is already playing, and if the speaker has been switched to something else in the meantime it is left alone.
 
+The volume can be locked for as long as it plays, so a change made on the speaker or in the Sonos app is put straight back.
+
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-sound.yaml)
 
 <!-- blueprints:end -->
