@@ -141,7 +141,18 @@ triggers:
     options:
       behavior: first
     id: motion_detected
+  - trigger: occupancy.detected
+    target: !input motion_sensors
+    options:
+      behavior: first
+    id: motion_detected
   - trigger: motion.cleared
+    target: !input motion_sensors
+    options:
+      behavior: all
+      for: !input no_motion_wait
+    id: motion_cleared
+  - trigger: occupancy.cleared
     target: !input motion_sensors
     options:
       behavior: all
@@ -181,6 +192,18 @@ actions:
         conditions:
           - condition: trigger
             id: motion_cleared
+          - alias: Every sensor is clear
+            condition: motion.is_not_detected
+            target: !input motion_sensors
+            options:
+              behavior: all
+              for: !input no_motion_wait
+          - alias: Every sensor is clear
+            condition: occupancy.is_not_detected
+            target: !input motion_sensors
+            options:
+              behavior: all
+              for: !input no_motion_wait
         sequence:
           - alias: Switch the lights off
             action: light.turn_off
