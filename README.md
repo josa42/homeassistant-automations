@@ -27,9 +27,11 @@ Lights that are unavailable are left alone, and a light coming back online does 
 
 Switch lights on when motion is detected and off again once every motion sensor has been clear for a while.
 
+Only the lights this automation switched on are switched off again. A light that was already on when motion started is left alone.
+
 Turning on can be gated on ambient light, on a time window, and on a bypass entity. Turning off is only blocked by the bypass, so lights can never be stranded on by a lux reading or by the end of the time window.
 
-Lights switched on by hand are also switched off once the room clears.
+Switching off happens in the same run as switching on. If Home Assistant restarts while the room is still occupied, the pending switch off is lost and the lights stay on until the next motion.
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml)
 

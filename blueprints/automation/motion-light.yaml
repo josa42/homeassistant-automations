@@ -5,12 +5,18 @@ blueprint:
     sensor has been clear for a while.
 
 
+    Only the lights this automation switched on are switched off again. A light
+    that was already on when motion started is left alone.
+
+
     Turning on can be gated on ambient light, on a time window, and on a bypass
     entity. Turning off is only blocked by the bypass, so lights can never be
     stranded on by a lux reading or by the end of the time window.
 
 
-    Lights switched on by hand are also switched off once the room clears.
+    Switching off happens in the same run as switching on. If Home Assistant
+    restarts while the room is still occupied, the pending switch off is lost
+    and the lights stay on until the next motion.
   domain: automation
   author: Josa Gesell
   source_url: https://github.com/josa42/homeassistant-automations/blob/main/blueprints/automation/motion-light.yaml
@@ -35,11 +41,14 @@ blueprint:
                   device_class: occupancy
         lights:
           name: Lights
-          description: The lights to switch on and off.
+          description: >-
+            The lights to switch on. Only those that were off when motion
+            started are switched off again once the room clears.
           selector:
-            target:
-              entity:
-                domain: light
+            entity:
+              multiple: true
+              filter:
+                - domain: light
     behaviour:
       name: Behaviour
       icon: mdi:cog
@@ -58,9 +67,9 @@ blueprint:
         brightness_pct:
           name: Brightness
           description: >-
-            Brightness the lights are switched on with. Applied when motion
-            starts, not on every movement, so dimming by hand keeps until the
-            room has been empty once.
+            Brightness the lights are switched on with. Applied only to the
+            lights that were off, so dimming one by hand keeps until the room
+            has been empty once.
           default: 100
           selector:
             number:
@@ -126,10 +135,11 @@ blueprint:
             entity:
               multiple: true
 
-mode: restart
+mode: single
 max_exceeded: silent
 
 variables:
+  lights: !input lights
   lux_sensors: !input lux_sensors
   lux_threshold: !input lux_threshold
   bypass_entities: !input bypass_entities
@@ -140,71 +150,74 @@ triggers:
     target: !input motion_sensors
     options:
       behavior: first
-    id: motion_detected
   - trigger: occupancy.detected
     target: !input motion_sensors
     options:
       behavior: first
-    id: motion_detected
-  - trigger: motion.cleared
-    target: !input motion_sensors
-    options:
-      behavior: all
-      for: !input no_motion_wait
-    id: motion_cleared
-  - trigger: occupancy.cleared
-    target: !input motion_sensors
-    options:
-      behavior: all
-      for: !input no_motion_wait
-    id: motion_cleared
 
 conditions:
   - alias: Not bypassed
     condition: template
-    value_template: >-
+    value_template: &not_bypassed >-
       {{ expand(bypass_entities) | selectattr('state', 'eq', 'on') | list | count == 0 }}
+  - alias: Dark enough
+    condition: template
+    value_template: >-
+      {% set readings = expand(lux_sensors) | map(attribute='state')
+         | map('float', -1) | select('ge', 0) | list %}
+      {{ readings | count == 0 or readings | max < lux_threshold | float }}
+  - alias: Within the time window
+    condition: time
+    after: !input time_after
+    before: !input time_before
+    enabled: !input use_time_window
 
 actions:
-  - choose:
-      - alias: Motion started
-        conditions:
-          - condition: trigger
-            id: motion_detected
-          - alias: Dark enough
-            condition: template
-            value_template: >-
-              {% set readings = expand(lux_sensors) | map(attribute='state')
-                 | map('float', -1) | select('ge', 0) | list %}
-              {{ readings | count == 0 or readings | max < lux_threshold | float }}
-          - alias: Within the time window
-            condition: time
-            after: !input time_after
-            before: !input time_before
-            enabled: !input use_time_window
-        sequence:
-          - alias: Switch the lights on
-            action: light.turn_on
-            target: !input lights
-            data:
-              brightness_pct: "{{ brightness_pct }}"
-      - alias: Motion cleared
-        conditions:
-          - condition: trigger
-            id: motion_cleared
-          - alias: Every sensor is clear
-            condition: motion.is_not_detected
-            target: !input motion_sensors
-            options:
-              behavior: all
-              for: !input no_motion_wait
-          - alias: Every sensor is clear
-            condition: occupancy.is_not_detected
-            target: !input motion_sensors
-            options:
-              behavior: all
-              for: !input no_motion_wait
-        sequence:
-          - alias: Switch the lights off
-            action: light.turn_off
-            target: !input lights
+  - alias: Take over the lights that are off
+    variables:
+      owned_lights: >-
+        {{ expand(lights) | selectattr('state', 'eq', 'off')
+           | map(attribute='entity_id') | list }}
+  - alias: Stop unless a light was off
+    condition: template
+    value_template: "{{ owned_lights | count > 0 }}"
+  - alias: Switch those lights on
+    action: light.turn_on
+    target:
+      entity_id: "{{ owned_lights }}"
+    data:
+      brightness_pct: "{{ brightness_pct }}"
+  - alias: Wait until every sensor has been clear
+    repeat:
+      while:
+        - not:
+            - and:
+                - condition: motion.is_not_detected
+                  target: !input motion_sensors
+                  options:
+                    behavior: all
+                    for: !input no_motion_wait
+                - condition: occupancy.is_not_detected
+                  target: !input motion_sensors
+                  options:
+                    behavior: all
+                    for: !input no_motion_wait
+      sequence:
+        - wait_for_trigger:
+            - trigger: motion.cleared
+              target: !input motion_sensors
+              options:
+                behavior: all
+                for: !input no_motion_wait
+            - trigger: occupancy.cleared
+              target: !input motion_sensors
+              options:
+                behavior: all
+                for: !input no_motion_wait
+  - alias: Not bypassed
+    condition: template
+    value_template: *not_bypassed
+  - alias: Switch off only what was taken over
+    action: light.turn_off
+    target:
+      entity_id: "{{ owned_lights }}"
